@@ -75,7 +75,7 @@
             bloomStrength: 0.7, bloomThreshold: 0.35, bloomRadius: 0.6
         };
 
-        // --- 已更新配置 ---
+        // --- 配置：文件夹 fam，数量 20 ---
         const AUTO_LOAD = { folder: "fam", count: 20, extension: "jpeg" };
 
         const STATE = { TREE: 'tree', SCATTER: 'scatter', ZOOM: 'zoom' };
@@ -87,7 +87,6 @@
         let zoomTargetIndex = -1;
         let logicData = { gold: [], silver: [], gem: [], emerald: [], dust: [], star: null };
         const dummy = new THREE.Object3D();
-        let time = 0;
         let handPos = { x: 0, y: 0 };
         let lastHandPos = { x: 0, y: 0 };
         let isHandPresent = false;
@@ -142,7 +141,7 @@
                 };
                 img.onerror = () => {
                     console.warn(`未找到: ${img.src}`);
-                    loaded++; // 即使失败也增加计数，防止状态栏卡死
+                    loaded++;
                 };
             }
         }
@@ -241,7 +240,6 @@
 
         function animate() {
             requestAnimationFrame(animate);
-            time += 0.01;
             [goldMesh, silverMesh, gemMesh, emeraldMesh].forEach((m, i) => updateMeshLogic(m, Object.values(logicData)[i]));
             updateDustLogic();
             updatePhotoLogic();
@@ -305,21 +303,38 @@
 
         async function setupMediaPipe() {
             const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm");
-            const handLandmarker = await HandLandmarker.createFromOptions(vision, { baseOptions: { modelAssetPath: `https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task`, delegate: "GPU" }, runningMode: "VIDEO", numHands: 1 });
+            const handLandmarker = await HandLandmarker.createFromOptions(vision, { 
+                baseOptions: { modelAssetPath: `https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task`, delegate: "GPU" }, 
+                runningMode: "VIDEO", numHands: 1 
+            });
             const video = document.getElementById("input-video");
+            const canvasElement = document.getElementById("skeleton-canvas");
+            const canvasCtx = canvasElement.getContext("2d");
+            const CONNECTIONS = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
+
             const stream = await navigator.mediaDevices.getUserMedia({ video: true });
             video.srcObject = stream;
             video.addEventListener("loadeddata", () => {
+                canvasElement.width = video.clientWidth;
+                canvasElement.height = video.clientHeight;
                 document.getElementById('loading').style.display = 'none';
                 updateStatus("准备就绪", "#0f0");
                 const predict = async () => {
                     const result = handLandmarker.detectForVideo(video, performance.now());
+                    canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
                     if (result.landmarks && result.landmarks.length > 0) {
                         isHandPresent = true;
-                        const l = result.landmarks[0];
-                        handPos = { x: 1 - (l[0].x + l[9].x)/2, y: (l[0].y + l[9].y)/2 };
-                        let folded = 0; [8,12,16,20].forEach(idx => { if(Math.sqrt((l[idx].x-l[0].x)**2 + (l[idx].y-l[0].y)**2) < 0.25) folded++; });
-                        const pinch = Math.sqrt((l[4].x-l[8].x)**2 + (l[4].y-l[8].y)**2) < 0.08;
+                        const landmarks = result.landmarks[0];
+                        canvasCtx.strokeStyle = "#00ff00"; canvasCtx.lineWidth = 2;
+                        CONNECTIONS.forEach(([s, e]) => {
+                            canvasCtx.beginPath();
+                            canvasCtx.moveTo(landmarks[s].x * canvasElement.width, landmarks[s].y * canvasElement.height);
+                            canvasCtx.lineTo(landmarks[e].x * canvasElement.width, landmarks[e].y * canvasElement.height);
+                            canvasCtx.stroke();
+                        });
+                        handPos = { x: 1 - (landmarks[0].x + landmarks[9].x)/2, y: (landmarks[0].y + landmarks[9].y)/2 };
+                        let folded = 0; [8,12,16,20].forEach(idx => { if(Math.sqrt((landmarks[idx].x-landmarks[0].x)**2 + (landmarks[idx].y-landmarks[0].y)**2) < 0.25) folded++; });
+                        const pinch = Math.sqrt((landmarks[4].x-landmarks[8].x)**2 + (landmarks[4].y-landmarks[8].y)**2) < 0.08;
                         if (pinch && currentState === STATE.SCATTER) {
                             currentState = STATE.ZOOM;
                             if (zoomTargetIndex === -1) {
@@ -334,10 +349,7 @@
                 predict();
             });
         }
-        initThree();
-        animate();
-        setupMediaPipe();
-        autoLoadLocalImages();
+        initThree(); animate(); setupMediaPipe(); autoLoadLocalImages();
     </script>
 </body>
 </html>
