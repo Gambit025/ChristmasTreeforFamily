@@ -295,7 +295,7 @@
 
         function handlePhysicsRotation() {
             if (currentState === STATE.SCATTER && isHandPresent) {
-                rotationVelocity.y += (handPos.x - lastHandPos.x) * 0.7;
+                rotationVelocity.y += (handPos.x - lastHandPos.x) * 0.5;
                 rotationVelocity.x += (handPos.y - lastHandPos.y) * 0.4;
                 lastHandPos = {...handPos};
             }
