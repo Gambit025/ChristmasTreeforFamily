@@ -90,6 +90,7 @@
         let lastHandPos = { x: 0, y: 0 };
         let isHandPresent = false;
         let rotationVelocity = { x: 0, y: 0 };
+        let time = 0;
 
         window.toggleUI = () => document.getElementById('canvas-wrapper').classList.toggle('hide-ui');
         function updateStatus(msg, color = '#fff') {
