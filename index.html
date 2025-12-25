@@ -28,7 +28,8 @@
             transition: opacity 0.5s ease;
         }
         #input-video { width: 100%; height: 100%; object-fit: cover; opacity: 0.5; position: absolute; top: 0; left: 0; }
-        #skeleton-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; }
+        /* 确保骨架画布在视频之上 */
+        #skeleton-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none;}
         #ui-layer { position: absolute; top: 40px; left: 40px; z-index: 3; pointer-events: none; color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,0.9); }
         h1 { font-weight: 200; letter-spacing: 6px; text-transform: uppercase; font-size: 2rem; margin: 0 0 15px 0; background: linear-gradient(to right, #fff, #ffd700, #fff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
         #status-text { margin-bottom: 12px; font-size: 1.1rem; color: #fff; font-weight: 500; display: flex; align-items: center; gap: 8px;}
@@ -75,7 +76,6 @@
             bloomStrength: 0.7, bloomThreshold: 0.35, bloomRadius: 0.6
         };
 
-        // --- 配置：文件夹 fam，数量 20 ---
         const AUTO_LOAD = { folder: "fam", count: 20, extension: "jpeg" };
 
         const STATE = { TREE: 'tree', SCATTER: 'scatter', ZOOM: 'zoom' };
@@ -240,6 +240,7 @@
 
         function animate() {
             requestAnimationFrame(animate);
+            time += 0.01;
             [goldMesh, silverMesh, gemMesh, emeraldMesh].forEach((m, i) => updateMeshLogic(m, Object.values(logicData)[i]));
             updateDustLogic();
             updatePhotoLogic();
@@ -253,7 +254,8 @@
 
         function updateMeshLogic(mesh, data) {
             data.forEach((item, i) => {
-                item.currentPos.lerp(currentState === STATE.TREE ? item.treePos : item.scatterPos, 0.08);
+                // 【速度优化】插值速度从 0.08 提高到 0.2，物体飞行更快
+                item.currentPos.lerp(currentState === STATE.TREE ? item.treePos : item.scatterPos, 0.2);
                 item.rotation.x += item.rotSpeed.x; item.rotation.y += item.rotSpeed.y;
                 dummy.position.copy(item.currentPos); dummy.rotation.copy(item.rotation);
                 dummy.scale.setScalar(currentState === STATE.ZOOM ? item.scale * 0.5 : item.scale);
@@ -282,7 +284,8 @@
                     target = mainGroup.worldToLocal(front);
                     mesh.lookAt(camera.position); mesh.scale.setScalar(5);
                 } else {
-                    mesh.position.lerp(target, 0.1);
+                    // 【速度优化】插值速度从 0.1 提高到 0.25，照片飞行更快
+                    mesh.position.lerp(target, 0.25);
                     if (currentState === STATE.TREE) { mesh.rotation.copy(mesh.userData.baseRot); mesh.rotation.y += 0.01; }
                     else mesh.lookAt(camera.position);
                     mesh.scale.setScalar(THREE.MathUtils.lerp(mesh.scale.x, currentState === STATE.SCATTER ? 3 : 2, 0.1));
@@ -292,13 +295,15 @@
 
         function handlePhysicsRotation() {
             if (currentState === STATE.SCATTER && isHandPresent) {
+                // 【速度优化】大幅提高手势旋转灵敏度 (0.2 -> 0.5, 0.1 -> 0.3)
                 rotationVelocity.y += (handPos.x - lastHandPos.x) * 0.7;
                 rotationVelocity.x += (handPos.y - lastHandPos.y) * 0.4;
                 lastHandPos = {...handPos};
             }
             mainGroup.rotation.y += rotationVelocity.y + (currentState === STATE.TREE ? 0.004 : 0);
             mainGroup.rotation.x += rotationVelocity.x;
-            rotationVelocity.y *= 0.95; rotationVelocity.x *= 0.95; mainGroup.rotation.x *= 0.98;
+            // 【速度优化】减小阻尼 (0.95 -> 0.98)，让旋转惯性更持久
+            rotationVelocity.y *= 0.98; rotationVelocity.x *= 0.98; mainGroup.rotation.x *= 0.98;
         }
 
         async function setupMediaPipe() {
@@ -325,13 +330,32 @@
                     if (result.landmarks && result.landmarks.length > 0) {
                         isHandPresent = true;
                         const landmarks = result.landmarks[0];
-                        canvasCtx.strokeStyle = "#00ff00"; canvasCtx.lineWidth = 2;
+                        
+                        // --- 【科技感虚线绘制核心代码】 ---
+                        canvasCtx.strokeStyle = "#39ff14"; // 霓虹绿
+                        canvasCtx.lineWidth = 2;
+                        canvasCtx.setLineDash([3, 5]); // 设置虚线：3px实线，5px间隔
+                        canvasCtx.shadowBlur = 8; // 添加发光效果
+                        canvasCtx.shadowColor = "#39ff14"; // 发光颜色同线条色
+
                         CONNECTIONS.forEach(([s, e]) => {
                             canvasCtx.beginPath();
                             canvasCtx.moveTo(landmarks[s].x * canvasElement.width, landmarks[s].y * canvasElement.height);
                             canvasCtx.lineTo(landmarks[e].x * canvasElement.width, landmarks[e].y * canvasElement.height);
                             canvasCtx.stroke();
                         });
+                        
+                        // 重置为实线绘制关节，避免关节糊掉
+                        canvasCtx.setLineDash([]); 
+                        canvasCtx.shadowBlur = 0;
+                        canvasCtx.fillStyle = "#ffffff";
+                        landmarks.forEach(p => {
+                            canvasCtx.beginPath();
+                            canvasCtx.arc(p.x * canvasElement.width, p.y * canvasElement.height, 3, 0, 2 * Math.PI);
+                            canvasCtx.fill();
+                        });
+                        // ------------------------------------
+
                         handPos = { x: 1 - (landmarks[0].x + landmarks[9].x)/2, y: (landmarks[0].y + landmarks[9].y)/2 };
                         let folded = 0; [8,12,16,20].forEach(idx => { if(Math.sqrt((landmarks[idx].x-landmarks[0].x)**2 + (landmarks[idx].y-landmarks[0].y)**2) < 0.25) folded++; });
                         const pinch = Math.sqrt((landmarks[4].x-landmarks[8].x)**2 + (landmarks[4].y-landmarks[8].y)**2) < 0.08;
