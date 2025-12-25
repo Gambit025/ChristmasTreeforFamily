@@ -11,7 +11,6 @@
             display: flex; justify-content: center; align-items: center; 
             height: 100vh; user-select: none;
         }
-
         #canvas-wrapper {
             position: relative;
             box-shadow: 0 0 80px rgba(212, 175, 55, 0.15);
@@ -19,9 +18,7 @@
             overflow: hidden;
             border-radius: 4px;
         }
-
         #canvas-container { width: 100%; height: 100%; display: block; }
-        
         #video-container {
             position: absolute; top: 20px; right: 20px; width: 160px; height: 120px; z-index: 2;
             border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 12px; overflow: hidden;
@@ -30,46 +27,16 @@
             background: rgba(0,0,0,0.8);
             transition: opacity 0.5s ease;
         }
-        #input-video { 
-            width: 100%; height: 100%; object-fit: cover; opacity: 0.5; 
-            position: absolute; top: 0; left: 0;
-        }
-        #skeleton-canvas {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10;
-        }
-
-        #ui-layer {
-            position: absolute; top: 40px; left: 40px; z-index: 3; pointer-events: none;
-            color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,0.9);
-        }
-
-        h1 {
-            font-weight: 200; letter-spacing: 6px; text-transform: uppercase; font-size: 2rem; margin: 0 0 15px 0;
-            background: linear-gradient(to right, #fff, #ffd700, #fff); 
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-        }
-
+        #input-video { width: 100%; height: 100%; object-fit: cover; opacity: 0.5; position: absolute; top: 0; left: 0; }
+        #skeleton-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; }
+        #ui-layer { position: absolute; top: 40px; left: 40px; z-index: 3; pointer-events: none; color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,0.9); }
+        h1 { font-weight: 200; letter-spacing: 6px; text-transform: uppercase; font-size: 2rem; margin: 0 0 15px 0; background: linear-gradient(to right, #fff, #ffd700, #fff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
         #status-text { margin-bottom: 12px; font-size: 1.1rem; color: #fff; font-weight: 500; display: flex; align-items: center; gap: 8px;}
         .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #555; display: inline-block;}
-        
-        #loading {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            color: #d4af37; font-size: 1rem; letter-spacing: 4px; z-index: 10; 
-            pointer-events: none; transition: opacity 0.5s; font-weight: 300;
-        }
-
-        #fullscreen-btn {
-            position: absolute; bottom: 30px; right: 30px; z-index: 20;
-            background: rgba(0,0,0,0.3); color: #d4af37; border: 1px solid rgba(212, 175, 55, 0.3);
-            width: 44px; height: 44px; border-radius: 50%; cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 1.2rem; transition: all 0.3s;
-            backdrop-filter: blur(4px);
-        }
-
+        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #d4af37; font-size: 1rem; letter-spacing: 4px; z-index: 10; pointer-events: none; transition: opacity 0.5s; font-weight: 300; }
+        #fullscreen-btn { position: absolute; bottom: 30px; right: 30px; z-index: 20; background: rgba(0,0,0,0.3); color: #d4af37; border: 1px solid rgba(212, 175, 55, 0.3); width: 44px; height: 44px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; transition: all 0.3s; backdrop-filter: blur(4px); }
         .hide-ui #ui-layer, .hide-ui #video-container { opacity: 0; }
     </style>
-    
     <script type="importmap">
         {
             "imports": {
@@ -80,7 +47,6 @@
     </script>
 </head>
 <body>
-
     <div id="canvas-wrapper">
         <div id="canvas-container"></div>
         <div id="video-container">
@@ -109,8 +75,8 @@
             bloomStrength: 0.7, bloomThreshold: 0.35, bloomRadius: 0.6
         };
 
-        // --- 自动加载配置 ---
-        const AUTO_LOAD = { folder: "Christmas", count: 30, extension: "jpeg" };
+        // --- 已更新配置 ---
+        const AUTO_LOAD = { folder: "fam", count: 20, extension: "jpeg" };
 
         const STATE = { TREE: 'tree', SCATTER: 'scatter', ZOOM: 'zoom' };
         let currentState = STATE.TREE;
@@ -121,7 +87,6 @@
         let zoomTargetIndex = -1;
         let logicData = { gold: [], silver: [], gem: [], emerald: [], dust: [], star: null };
         const dummy = new THREE.Object3D();
-        const _tempVec3 = new THREE.Vector3();
         let time = 0;
         let handPos = { x: 0, y: 0 };
         let lastHandPos = { x: 0, y: 0 };
@@ -139,30 +104,24 @@
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x050505);
             scene.fog = new THREE.FogExp2(0x050505, 0.002);
-
             updateDimensions();
             camera = new THREE.PerspectiveCamera(50, wrapper.clientWidth / wrapper.clientHeight, 0.1, 1000);
             camera.position.set(0, 0, CONFIG.camDistance);
-
             renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
             renderer.setSize(wrapper.clientWidth, wrapper.clientHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
             renderer.toneMapping = THREE.ACESFilmicToneMapping;
             document.getElementById('canvas-container').appendChild(renderer.domElement);
-
             const pmremGenerator = new THREE.PMREMGenerator(renderer);
             scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
-
             const renderScene = new RenderPass(scene, camera);
             const bloomPass = new UnrealBloomPass(new THREE.Vector2(wrapper.clientWidth, wrapper.clientHeight), 1.5, 0.4, 0.85);
             bloomPass.threshold = CONFIG.bloomThreshold;
             bloomPass.strength = CONFIG.bloomStrength;
             bloomPass.radius = CONFIG.bloomRadius;
-
             composer = new EffectComposer(renderer);
             composer.addPass(renderScene);
             composer.addPass(bloomPass);
-
             createMaterialsAndMeshes();
             createDust();
             createStarField();
@@ -170,7 +129,6 @@
             window.addEventListener('resize', onWindowResize);
         }
 
-        // --- 核心：自动加载函数 ---
         async function autoLoadLocalImages() {
             updateStatus("正在挂载圣诞记忆...", "#ffd700");
             let loaded = 0;
@@ -182,7 +140,10 @@
                     loaded++;
                     if (loaded === AUTO_LOAD.count) updateStatus("所有照片已就绪", "#0f0");
                 };
-                img.onerror = () => console.warn(`未找到: p${i}.jpeg`);
+                img.onerror = () => {
+                    console.warn(`未找到: ${img.src}`);
+                    loaded++; // 即使失败也增加计数，防止状态栏卡死
+                };
             }
         }
 
@@ -193,35 +154,29 @@
             let w = 4, h = 4;
             if(img.width > img.height) h = 4 * (img.height/img.width);
             else w = 4 * (img.width/img.height);
-
             const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide }));
             const frame = new THREE.Mesh(new THREE.BoxGeometry(w+0.2, h+0.2, 0.1), new THREE.MeshPhysicalMaterial({color:0xffd700, metalness:1, roughness:0.2}));
             frame.position.z = -0.06;
             mesh.add(frame);
-
             const h_pos = (Math.random() - 0.5) * CONFIG.treeHeight;
             const normH = (h_pos + CONFIG.treeHeight/2) / CONFIG.treeHeight;
             const r = (CONFIG.maxRadius * (1 - normH) + 2) * (0.6 + 0.4 * Math.random());
             const theta = Math.random() * Math.PI * 2;
-            
             mesh.userData = { treePos: new THREE.Vector3(r * Math.cos(theta), h_pos, r * Math.sin(theta)), scatterPos: randomSpherePoint(60), baseRot: new THREE.Euler(0, theta + Math.PI/2, 0) };
             mesh.position.copy(mesh.userData.treePos);
             photoMeshes.push(mesh);
             mainGroup.add(mesh);
         }
 
-        // --- 其余 Three.js 逻辑 ---
         function createMaterialsAndMeshes() {
             const goldMat = new THREE.MeshPhysicalMaterial({ color: 0xffaa00, metalness: 1, roughness: 0.15, emissive: 0xaa5500, emissiveIntensity: 0.1 });
             const silverMat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, metalness: 0.9, roughness: 0.2 });
             const gemMat = new THREE.MeshPhysicalMaterial({ color: 0xff0044, transmission: 0.6, thickness: 1.5, emissive: 0x550011, emissiveIntensity: 0.4 });
             const emeraldMat = new THREE.MeshPhysicalMaterial({ color: 0x00aa55, transmission: 0.5, thickness: 1.5, emissive: 0x002211, emissiveIntensity: 0.3 });
-
             goldMesh = createInstancedMesh(new THREE.SphereGeometry(0.7), goldMat, CONFIG.goldCount, logicData.gold);
             silverMesh = createInstancedMesh(new THREE.BoxGeometry(0.8, 0.8, 0.8), silverMat, CONFIG.silverCount, logicData.silver);
             gemMesh = createInstancedMesh(new THREE.OctahedronGeometry(0.8), gemMat, CONFIG.gemCount, logicData.gem);
             emeraldMesh = createInstancedMesh(new THREE.ConeGeometry(0.5, 1.2), emeraldMat, CONFIG.emeraldCount, logicData.emerald);
-
             const star = new THREE.Mesh(new THREE.OctahedronGeometry(3.0), new THREE.MeshPhysicalMaterial({ color: 0xffffff, emissive: 0xffffee, emissiveIntensity: 1.5 }));
             star.userData = { treePos: new THREE.Vector3(0, CONFIG.treeHeight/2 + 2.5, 0), scatterPos: new THREE.Vector3(0, 60, 0) };
             mainGroup.add(star);
@@ -334,7 +289,6 @@
                     else mesh.lookAt(camera.position);
                     mesh.scale.setScalar(THREE.MathUtils.lerp(mesh.scale.x, currentState === STATE.SCATTER ? 3 : 2, 0.1));
                 }
-                mesh.position.lerp(target, 0.1);
             });
         }
 
@@ -380,7 +334,6 @@
                 predict();
             });
         }
-
         initThree();
         animate();
         setupMediaPipe();
